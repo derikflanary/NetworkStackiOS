@@ -8,7 +8,7 @@
 
 import Foundation
 
-typealias JSONObject = [String: Any]
+public typealias JSONObject = [String: Any]
 
 
 // MARK: - URLRequestConvertible
@@ -29,7 +29,7 @@ public protocol URLRequestConvertible {
     
 }
 
-public extension URLRequestConvertible {
+extension URLRequestConvertible {
     /// The URL request.
     public var urlRequest: URLRequest? { return try? asURLRequest() }
 }
@@ -50,7 +50,7 @@ public protocol URLConvertible {
     func asURL() throws -> URL
 }
 
-public extension String: URLConvertible {
+extension String: URLConvertible {
     /// Returns a URL if `self` represents a valid URL string that conforms to RFC 2396 or throws an `APIError`.
     ///
     /// - throws: An `APIError.invalidURL` if `self` is not a valid URL string.
@@ -62,12 +62,12 @@ public extension String: URLConvertible {
     }
 }
 
-public extension URL: URLConvertible {
+extension URL: URLConvertible {
     /// Returns self.
     public func asURL() throws -> URL { return self }
 }
 
-public extension URLComponents: URLConvertible {
+extension URLComponents: URLConvertible {
     /// Returns a URL if `url` is not nil, otherwise throws an `Error`.
     ///
     /// - throws: An `APIError.invalidURL` if `url` is `nil`.

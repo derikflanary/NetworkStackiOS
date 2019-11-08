@@ -45,7 +45,7 @@ public class Network: Networkable {
     ///   - urlRequest: The url request that contains the endpoint and httpMethod
     ///
     /// - Returns: A generic publisher with `Output` of T? and Never for the `Error`
-    func requestIgnoringError<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type) -> AnyPublisher<T?, Never> {
+    public func requestIgnoringError<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type) -> AnyPublisher<T?, Never> {
         let request = adapt(urlRequest)
         
         return perform(request, with: defaultSession)
@@ -67,7 +67,7 @@ public class Network: Networkable {
     ///   - retryCount: Int value for how many times the session should retry the network call if it fails
     ///
     /// - Returns: A generic publisher with `Output` of T and `Error` of Error
-    func request<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type, retryCount: Int = 3) -> AnyPublisher<T, Error> {
+    public func request<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type, retryCount: Int = 3) -> AnyPublisher<T, Error> {
         let request = adapt(urlRequest)
                 
         return perform(request, with: defaultSession)
@@ -88,7 +88,7 @@ public class Network: Networkable {
             .eraseToAnyPublisher()
     }
         
-    func perform(_ urlRequest: URLRequest, with session: URLSession) -> URLSession.DataTaskPublisher {
+    public func perform(_ urlRequest: URLRequest, with session: URLSession) -> URLSession.DataTaskPublisher {
         return session.dataTaskPublisher(for: urlRequest)
     }
 
