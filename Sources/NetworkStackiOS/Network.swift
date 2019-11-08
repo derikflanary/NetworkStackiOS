@@ -31,7 +31,7 @@ public class Network: Networkable {
         return URLSession(configuration: configuration)
     }
     
-    init(environment: ProtectedAPIEnvironment) {
+    public init(environment: ProtectedAPIEnvironment) {
         self.environment = environment
     }
     
