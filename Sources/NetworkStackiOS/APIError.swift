@@ -8,7 +8,7 @@
 
 import Foundation
 
-internal enum APIError: Error {
+public enum APIError: Error {
     case noInternetConnection
     case networkError(Error?)
     case unsuccessfulRequest(String?)

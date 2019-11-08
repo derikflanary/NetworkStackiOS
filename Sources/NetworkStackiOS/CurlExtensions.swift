@@ -8,7 +8,7 @@
 
 import Foundation
 
-internal extension URLRequest {
+public internal extension URLRequest {
 
     private struct Keys {
         static let applicationJSON = "application/json"

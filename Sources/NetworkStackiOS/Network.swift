@@ -9,14 +9,14 @@
 import Foundation
 import Combine
 
-internal protocol Networkable {
+public protocol Networkable {
     func perform(_ urlRequest: URLRequest, with session: URLSession) -> URLSession.DataTaskPublisher
     func requestIgnoringError<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type) -> AnyPublisher<T?, Never>
     func request<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type, retryCount: Int) -> AnyPublisher<T, Error>
 }
 
     
-class Network: Networkable {
+public class Network: Networkable {
     
     var environment: ProtectedAPIEnvironment?
     

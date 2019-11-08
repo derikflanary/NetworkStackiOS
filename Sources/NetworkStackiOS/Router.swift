@@ -8,4 +8,4 @@
 
 import Foundation
 
-enum Router { }
+public enum Router { }

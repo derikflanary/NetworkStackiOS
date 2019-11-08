@@ -14,7 +14,7 @@ typealias JSONObject = [String: Any]
 // MARK: - URLRequestConvertible
 
 /// Types adopting the `URLRequestConvertible` protocol can be used to construct URL requests.
-protocol URLRequestConvertible {
+public protocol URLRequestConvertible {
 
     var method: HTTPMethod { get }
     
@@ -29,7 +29,7 @@ protocol URLRequestConvertible {
     
 }
 
-extension URLRequestConvertible {
+public extension URLRequestConvertible {
     /// The URL request.
     public var urlRequest: URLRequest? { return try? asURLRequest() }
 }
@@ -41,7 +41,7 @@ extension URLRequestConvertible {
 
 /// Types adopting the `URLConvertible` protocol can be used to construct URLs, which are then used to construct
 /// URL requests.
-protocol URLConvertible {
+public protocol URLConvertible {
     /// Returns a URL that conforms to RFC 2396 or throws an `Error`.
     ///
     /// - throws: An `Error` if the type cannot be converted to a `URL`.
@@ -50,7 +50,7 @@ protocol URLConvertible {
     func asURL() throws -> URL
 }
 
-extension String: URLConvertible {
+public extension String: URLConvertible {
     /// Returns a URL if `self` represents a valid URL string that conforms to RFC 2396 or throws an `APIError`.
     ///
     /// - throws: An `APIError.invalidURL` if `self` is not a valid URL string.
@@ -62,12 +62,12 @@ extension String: URLConvertible {
     }
 }
 
-extension URL: URLConvertible {
+public extension URL: URLConvertible {
     /// Returns self.
     public func asURL() throws -> URL { return self }
 }
 
-extension URLComponents: URLConvertible {
+public extension URLComponents: URLConvertible {
     /// Returns a URL if `url` is not nil, otherwise throws an `Error`.
     ///
     /// - throws: An `APIError.invalidURL` if `url` is `nil`.
@@ -82,7 +82,7 @@ extension URLComponents: URLConvertible {
 
 // MARK: - URL extensions
 
-extension URL {
+public extension URL {
     
     func parameterEncoded(with jsonObject: JSONObject) -> URL? {
         var components = URLComponents(url: self, resolvingAgainstBaseURL: true)

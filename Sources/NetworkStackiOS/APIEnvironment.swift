@@ -9,12 +9,12 @@
 import Foundation
 import Combine
 
-protocol APIEnvironment {
+public protocol APIEnvironment {
     var baseURL: URL? { get }
 }
 
 
-protocol ProtectedAPIEnvironment: APIEnvironment {
+public protocol ProtectedAPIEnvironment: APIEnvironment {
     var bearerToken: String? { get }
     var refreshToken: String? { get }
     var isExpired: Bool { get }
@@ -23,6 +23,6 @@ protocol ProtectedAPIEnvironment: APIEnvironment {
 }
 
 
-protocol MockAPIEnvironment: APIEnvironment {
+public protocol MockAPIEnvironment: APIEnvironment {
     var protocolClass: AnyClass? { get }
 }
