@@ -8,7 +8,7 @@
 
 import Foundation
 
-@testable import Network_Stack
+@testable import NetworkStackiOS
 
 extension Router {
     

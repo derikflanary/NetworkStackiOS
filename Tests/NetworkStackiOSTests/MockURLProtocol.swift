@@ -9,7 +9,7 @@
 import Combine
 import Foundation
 
-@testable import Network_Stack
+@testable import NetworkStackiOS
 
 class MockURLProtocol: URLProtocol {
     

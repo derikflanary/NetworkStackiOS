@@ -9,7 +9,7 @@
 import Foundation
 import Combine
 
-@testable import Network_Stack
+@testable import NetworkStackiOS
 
 struct FakeAPIEnvironment: ProtectedAPIEnvironment, MockAPIEnvironment {
     

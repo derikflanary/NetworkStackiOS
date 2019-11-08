@@ -9,7 +9,7 @@
 import Foundation
 import XCTest
 
-@testable import Network_Stack
+@testable import NetworkStackiOS
 
 class URLRequestConvertibleSpec: XCTestCase {
     

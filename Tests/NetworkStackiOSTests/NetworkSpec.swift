@@ -10,7 +10,7 @@ import Foundation
 import XCTest
 import Combine
 
-@testable import Network_Stack
+@testable import NetworkStackiOS
 
 class NetworkSpec: XCTestCase {
     
