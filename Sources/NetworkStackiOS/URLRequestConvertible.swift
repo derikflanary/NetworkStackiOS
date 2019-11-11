@@ -84,6 +84,14 @@ extension URLComponents: URLConvertible {
 
 public extension URL {
     
+    /// Encodes a `JSONObject` into query items on a url
+    ///
+    /// - Note: Will return an `APIError` based on the statusCode of the URLResponse
+    ///
+    /// - Parameters:
+    ///   - jsonObject: the parameters to be encoded. `[String: Any]`
+    ///
+    /// - Returns: An optional url that has the paremeters encoded into it
     func parameterEncoded(with jsonObject: JSONObject) -> URL? {
         var components = URLComponents(url: self, resolvingAgainstBaseURL: true)
         var queryItems = [URLQueryItem]()

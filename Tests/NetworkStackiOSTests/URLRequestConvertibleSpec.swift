@@ -16,7 +16,7 @@ class URLRequestConvertibleSpec: XCTestCase {
     func testConvertsRouterToRequest() {
         let request = Router.MockObject.getObjects.urlRequest
         expect(notNil: request)
-        expect(request?.httpMethod, equals: HTTPMethod.get.rawValue.uppercased())
+        expect(request?.httpMethod, equals: HTTPMethod.get.rawValue)
     }
     
     

@@ -240,7 +240,7 @@ class NetworkSpec: XCTestCase {
     /// Tests that on a post request that the application json header is added to the request
     func testPostRequestAddsApplicationJSONHeader() {
         let network = Network(environment: FakeAPIEnvironment())
-        expect(fakePostRequest.httpMethod, equals: HTTPMethod.post.rawValue.uppercased())
+        expect(fakePostRequest.httpMethod, equals: HTTPMethod.post.rawValue)
         let adaptedRequest = network.adapt(fakePostRequest)
         expect(adaptedRequest.allHTTPHeaderFields![NetworkKeys.contentTypeHeader], equals: NetworkKeys.applicationJSON)
     }

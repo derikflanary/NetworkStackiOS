@@ -88,6 +88,15 @@ public class Network: Networkable {
             .eraseToAnyPublisher()
     }
         
+    /// Perform a network request that will just return the `DataTaskPublisher<(Data, URLResponse), URLError>`
+    ///
+    /// - Note: Only to be used you need to access the URLResponse or Data directly from the DataTaskPublisher
+    ///
+    /// - Parameters:
+    ///   - urlRequest: The url request that contains the endpoint and httpMethod
+    ///   - session: the `URLSession` that will perform the request
+    ///
+    /// - Returns: URLSession.DataTaskPublisher
     public func perform(_ urlRequest: URLRequest, with session: URLSession) -> URLSession.DataTaskPublisher {
         return session.dataTaskPublisher(for: urlRequest)
     }
@@ -136,7 +145,7 @@ extension Network {
     func adapt(_ urlRequest: URLRequest) -> URLRequest {
         var request = urlRequest
         request.url = request.url?.based(at: environment?.baseURL)
-        if let method = request.httpMethod, method == HTTPMethod.post.rawValue.uppercased(), request.value(forHTTPHeaderField: NetworkKeys.contentTypeHeader) == nil {
+        if let method = request.httpMethod, method == HTTPMethod.post.rawValue, request.value(forHTTPHeaderField: NetworkKeys.contentTypeHeader) == nil {
             request.setValue(NetworkKeys.applicationJSON, forHTTPHeaderField: NetworkKeys.contentTypeHeader)
         }
         request.addValue(UUID().uuidString, forHTTPHeaderField: NetworkKeys.requestIdHeader)
