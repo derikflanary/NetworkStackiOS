@@ -84,6 +84,20 @@ extension URLComponents: URLConvertible {
 
 public extension URL {
     
+    /// Adds the baseURl to the endpoint URL
+    func based(at base: URL?) -> URL? {
+        guard let base = base else { return self }
+        guard let baseComponents = URLComponents(string: base.absoluteString) else { return self }
+        guard var components = URLComponents(string: self.absoluteString) else { return self }
+        guard components.scheme == nil else { return self }
+        
+        components.scheme = baseComponents.scheme
+        components.host = baseComponents.host
+        components.port = baseComponents.port
+        components.path = baseComponents.path + components.path
+        return components.url
+    }
+    
     /// Encodes a `JSONObject` into query items on a url
     ///
     /// - Note: Will return an `APIError` based on the statusCode of the URLResponse

@@ -35,47 +35,14 @@ class NetworkSpec: XCTestCase {
     }
     
     
-    // MARK: - Failure Tests
+    // MARK: - Success Tests
     
-    /// test that it throws an error when no data returns
-    func testThatItThrowsAnErrorWhenNoDataReturns() {
-        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
-            .sink(receiveCompletion: { completion in
-                switch completion {
-                case .failure(let error):
-                    self.expectation.fulfill()
-                    guard let error = error as? APIError else { XCTFail("Expected a APIError error"); return }
-                    guard case .networkError(let err) = error else { XCTFail("Expected a network error"); return }
-                    self.expect(notNil: err)
-                case .finished:
-                    break
-                }
-            }) { _ in }
+    /// test that it returns a decoded object on a successful request
+    func testThatItReturnsArrayASingleObject() {
+        let data = try! encoder.encode(mockObject)
+        MockURLProtocol.responseData = data
         
-        wait(for: [expectation], timeout: 12.0)
-    }
-    
-    func testThatItThrowsAValidationFailedWith400Response() {
-        MockURLProtocol.responseData = Data()
-        MockURLProtocol.statusCode = 400
         cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
-            .sink(receiveCompletion: { completion in
-                switch completion {
-                case .failure(let error):
-                    guard let error = error as? APIError else { XCTFail("Expected a APIError error"); return }
-                    guard case .validationFailed(_) = error else { XCTFail("Expected a validationFailed error"); return }
-                    self.expectation.fulfill()
-                case .finished:
-                    break
-                }
-            }) { _ in }
-        
-        wait(for: [expectation], timeout: 12.0)
-    }
-    
-    /// test that it return nil when an error is thrown
-    func testThatItReturnsNilWithError() {
-        cancelable = Network(environment: FakeAPIEnvironment()).requestIgnoringError(fakeGetRequest, responseAs: MockObject.self)
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .failure:
@@ -83,55 +50,14 @@ class NetworkSpec: XCTestCase {
                 case .finished:
                     self.expectation.fulfill()
                 }
-            }) { value in
-                self.expect(nil: value)
-            }
+            }) { object in
+                self.expect(object, equals: self.mockObject)
+        }
+        
+        wait(for: [expectation], timeout: 12.0)
+    }
 
-        wait(for: [expectation], timeout: 12.0)
-    }
-    
-    /// test that it throws an error with invalid data
-    func testThatItThrowsAnErrorWithErrorWhenDecodingData() {
-        MockURLProtocol.responseData = Data()
-        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
-            .sink(receiveCompletion: { completion in
-                switch completion {
-                case .failure(let error):
-                    guard let error = error as? APIError else { XCTFail("Expected a APIError error"); return }
-                    guard case .decodingError(let err) = error else { XCTFail("Expected a decoding error"); return }
-                    self.expectation.fulfill()
-                    self.expect(notNil: err)
-                case .finished:
-                    break
-                }
-            }) { _ in }
-        
-        wait(for: [expectation], timeout: 12.0)
-    }
-    
-    /// test throws correct error when there is no internet connection
-    func testThrowsErrorWhenNoInternet() {
-        MockURLProtocol.responseData = Data()
-        MockURLProtocol.urlErrorCode = URLError.Code.notConnectedToInternet
-        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
-            .sink(receiveCompletion: { completion in
-                switch completion {
-                case .failure(let error):
-                    guard let error = error as? APIError else { XCTFail("Expected a APIError error"); return }
-                    guard case .noInternetConnection = error else { XCTFail("Expected a no internet error"); return }
-                    self.expectation.fulfill()
-                case .finished:
-                    break
-                }
-            }) { _ in }
-        
-        wait(for: [expectation], timeout: 12.0)
-    }
-    
-    
-    // MARK: - Success Tests
-    
-    /// test that it returns a decoded object on a successful request
+    /// test that it returns an array of decoded objects on a successful request
     func testThatItReturnsArrayOfObjects() {
         let data = try! encoder.encode([mockObject])
         MockURLProtocol.responseData = data
@@ -150,27 +76,6 @@ class NetworkSpec: XCTestCase {
 
         wait(for: [expectation], timeout: 12.0)
     }
-    
-    /// test that it returns a decoded object on a successful request
-    func testThatItReturnsArrayASingleObject() {
-        let data = try! encoder.encode(mockObject)
-        MockURLProtocol.responseData = data
-        
-        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
-            .sink(receiveCompletion: { completion in
-                switch completion {
-                case .failure:
-                    break
-                case .finished:
-                    self.expectation.fulfill()
-                }
-            }) { object in
-                self.expect(object, equals: self.mockObject)
-            }
-        
-        wait(for: [expectation], timeout: 12.0)
-    }
-
     
     /// test that it return the decoded object and not nil
     func testThatItReturnsObjectAndNotNil() {
@@ -222,6 +127,96 @@ class NetworkSpec: XCTestCase {
         
         cancelable!.cancel()
         wait(for: [expectation], timeout: 1.0)
+    }
+    
+    
+    // MARK: - Failure Tests
+    
+    /// test that it throws an error when no data returns
+    func testThatItThrowsAnErrorWhenNoDataReturns() {
+        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure(let error):
+                    self.expectation.fulfill()
+                    guard case .networkError(let err) = error else { XCTFail("Expected a network error"); return }
+                    self.expect(notNil: err)
+                case .finished:
+                    break
+                }
+            }) { _ in }
+        
+        wait(for: [expectation], timeout: 12.0)
+    }
+    
+    func testThatItThrowsAValidationFailedWith400Response() {
+        MockURLProtocol.responseData = Data()
+        MockURLProtocol.statusCode = 400
+        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure(let error):
+                    guard case .validationFailed(_) = error else { XCTFail("Expected a validationFailed error"); return }
+                    self.expectation.fulfill()
+                case .finished:
+                    break
+                }
+            }) { _ in }
+        
+        wait(for: [expectation], timeout: 12.0)
+    }
+    
+    /// test that it return nil when an error is thrown
+    func testThatItReturnsNilWithError() {
+        cancelable = Network(environment: FakeAPIEnvironment()).requestIgnoringError(fakeGetRequest, responseAs: MockObject.self)
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure:
+                    break
+                case .finished:
+                    self.expectation.fulfill()
+                }
+            }) { value in
+                self.expect(nil: value)
+            }
+
+        wait(for: [expectation], timeout: 12.0)
+    }
+    
+    /// test that it throws an error with invalid data
+    func testThatItThrowsAnErrorWithErrorWhenDecodingData() {
+        MockURLProtocol.responseData = Data()
+        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure(let error):
+                    guard case .decodingError(let err) = error else { XCTFail("Expected a decoding error"); return }
+                    self.expectation.fulfill()
+                    self.expect(notNil: err)
+                case .finished:
+                    break
+                }
+            }) { _ in }
+        
+        wait(for: [expectation], timeout: 12.0)
+    }
+    
+    /// test throws correct error when there is no internet connection
+    func testThrowsErrorWhenNoInternet() {
+        MockURLProtocol.responseData = Data()
+        MockURLProtocol.urlErrorCode = URLError.Code.notConnectedToInternet
+        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure(let error):
+                    guard case .noInternetConnection = error else { XCTFail("Expected a no internet error"); return }
+                    self.expectation.fulfill()
+                case .finished:
+                    break
+                }
+            }) { _ in }
+        
+        wait(for: [expectation], timeout: 12.0)
     }
     
     

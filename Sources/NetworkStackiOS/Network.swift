@@ -9,31 +9,48 @@
 import Foundation
 import Combine
 
+// MARK: - Networkable Protocol
+
 public protocol Networkable {
     func perform(_ urlRequest: URLRequest, with session: URLSession) -> URLSession.DataTaskPublisher
     func requestIgnoringError<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type) -> AnyPublisher<T?, Never>
-    func request<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type, retryCount: Int) -> AnyPublisher<T, Error>
+    func request<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type, retryCount: Int) -> AnyPublisher<T, APIError>
 }
 
+
+// MARK: - Network class
     
 public class Network: Networkable {
     
-    var environment: ProtectedAPIEnvironment?
+    // MARK: - Properties
+    
+    var environment: APIEnvironment?
     
     private var defaultSession: URLSession {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 10.0
+        
+        // Sets up protocolClass for a testing environment
         if let mock = environment as? MockAPIEnvironment, let protocolClass = mock.protocolClass {
             configuration.protocolClasses = [protocolClass]
+            return URLSession(configuration: configuration)
         }
-        guard let environment = environment, let token = environment.bearerToken, !environment.isExpired else { return URLSession(configuration: configuration) }
+        
+        guard let environment = environment as? ProtectedAPIEnvironment, let token = environment.bearerToken, !environment.isExpired else { return URLSession(configuration: configuration) }
+        
         configuration.httpAdditionalHeaders = [NetworkKeys.authorization: "\(NetworkKeys.bearer) \(token)"]
         return URLSession(configuration: configuration)
     }
     
-    public init(environment: ProtectedAPIEnvironment) {
+    
+    // MARK: - Initialization
+    
+    public init(environment: APIEnvironment) {
         self.environment = environment
     }
+    
+    
+    // MARK: - Preforming network requests
     
     /// Perform a network request that will return a publisher that ignores the error and instead returns an optional value
     ///
@@ -66,8 +83,8 @@ public class Network: Networkable {
     ///   - responseAs: Type of the Codable object that the publisher will return in its `Output`
     ///   - retryCount: Int value for how many times the session should retry the network call if it fails
     ///
-    /// - Returns: A generic publisher with `Output` of T and `Error` of Error
-    public func request<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type, retryCount: Int = 3) -> AnyPublisher<T, Error> {
+    /// - Returns: A generic publisher with `Output` of T and `APIError` of Error
+    public func request<T: Codable>(_ urlRequest: URLRequest, responseAs: T.Type, retryCount: Int = 3) -> AnyPublisher<T, APIError> {
         let request = adapt(urlRequest)
                 
         return perform(request, with: defaultSession)
@@ -101,6 +118,9 @@ public class Network: Networkable {
         return session.dataTaskPublisher(for: urlRequest)
     }
 
+    
+    // MARK: Error handling
+    
     /// Convert a URLResponse and data into an `APIError`
     ///
     /// - Note: Will return an `APIError` based on the statusCode of the URLResponse
@@ -125,6 +145,14 @@ public class Network: Networkable {
         }
     }
 
+    /// Convert a `URLError` into an `APIError`
+    ///
+    /// - Note: Will return an `APIError` based on the `code` of the `URLError`. Defaults to `APIError.networkError`
+    ///
+    /// - Parameters:
+    ///   - urlError: The `URLError` returned from the network request
+    ///
+    /// - Returns: An `APIError`, defaults to `networkError`
     private func convertedError(from urlError: URLError) -> APIError {
         switch urlError.code {
         case .notConnectedToInternet:
@@ -137,7 +165,7 @@ public class Network: Networkable {
 }
 
 
-// Adapter
+// MARK: - Adapter
 
 extension Network {
     
@@ -154,23 +182,3 @@ extension Network {
     }
     
 }
-
-
-extension URL {
-    
-    /// Adds the baseURl to the endpoint URL
-    func based(at base: URL?) -> URL? {
-        guard let base = base else { return self }
-        guard let baseComponents = URLComponents(string: base.absoluteString) else { return self }
-        guard var components = URLComponents(string: self.absoluteString) else { return self }
-        guard components.scheme == nil else { return self }
-
-        components.scheme = baseComponents.scheme
-        components.host = baseComponents.host
-        components.port = baseComponents.port
-        components.path = baseComponents.path + components.path
-        return components.url
-    }
-    
-}
-
