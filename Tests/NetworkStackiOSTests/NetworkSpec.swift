@@ -22,6 +22,17 @@ class NetworkSpec: XCTestCase {
     let mockObject = MockObject()
     var fakeGetRequest = Router.MockObject.getObjects.urlRequest!
     var fakePostRequest = Router.MockObject.postObject(id: 1).urlRequest!
+    var subscribers = Set<AnyCancellable>()
+    var session: URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.protocolClasses = [MockURLProtocol.self]
+        return URLSession(configuration: configuration)
+    }
+    var expiredEnvironment: FakeAPIEnvironment {
+        let expiredEnvironment = FakeAPIEnvironment()
+        expiredEnvironment.bearerToken = nil
+        return expiredEnvironment
+    }
 
     
     // MARK: Setup and Teardown
@@ -42,7 +53,7 @@ class NetworkSpec: XCTestCase {
         let data = try! encoder.encode(mockObject)
         MockURLProtocol.responseData = data
         
-        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
+        cancelable = NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .failure:
@@ -54,15 +65,15 @@ class NetworkSpec: XCTestCase {
                 self.expect(object, equals: self.mockObject)
         }
         
-        wait(for: [expectation], timeout: 12.0)
+        wait(for: [expectation], timeout: 5.0)
     }
-
+    
     /// test that it returns an array of decoded objects on a successful request
     func testThatItReturnsArrayOfObjects() {
         let data = try! encoder.encode([mockObject])
         MockURLProtocol.responseData = data
         
-        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: [MockObject].self)
+        cancelable = NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: [MockObject].self, decoder: JSONDecoder())
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .failure:
@@ -74,7 +85,7 @@ class NetworkSpec: XCTestCase {
                 self.expect(objects, equals: [self.mockObject])
             }
 
-        wait(for: [expectation], timeout: 12.0)
+        wait(for: [expectation], timeout: 5.0)
     }
     
     /// test that it return the decoded object and not nil
@@ -82,7 +93,7 @@ class NetworkSpec: XCTestCase {
         let data = try! encoder.encode(mockObject)
         MockURLProtocol.responseData = data
         
-        cancelable = Network(environment: FakeAPIEnvironment()).requestIgnoringError(fakeGetRequest, responseAs: MockObject.self)
+        cancelable = NetworkManager(environment: TestMockAPIEnvironment()).requestIgnoringError(fakeGetRequest, responseAs: MockObject.self)
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .failure:
@@ -94,15 +105,15 @@ class NetworkSpec: XCTestCase {
                 self.expect(value, equals: self.mockObject)
             }
         
-        wait(for: [expectation], timeout: 12.0)
+        wait(for: [expectation], timeout: 5.0)
     }
     
     /// test that it will return a success if a post is called
-    func testThatSucessfullyPosts() {
+    func testThatSuccessfullyPosts() {
         let data = try! encoder.encode(mockObject)
             MockURLProtocol.responseData = data
             
-            cancelable = Network(environment: FakeAPIEnvironment()).requestIgnoringError(fakePostRequest, responseAs: MockObject.self)
+            cancelable = NetworkManager(environment: TestMockAPIEnvironment()).requestIgnoringError(fakePostRequest, responseAs: MockObject.self)
                 .sink(receiveCompletion: { completion in
                     switch completion {
                     case .failure:
@@ -114,12 +125,12 @@ class NetworkSpec: XCTestCase {
                     self.expect(value, equals: self.mockObject)
                 }
         expect(notNil: cancelable)
-        wait(for: [expectation], timeout: 12.0)
+        wait(for: [expectation], timeout: 5.0)
     }
     
     /// test that a subscription will cancel successfully
     func testSubscriptionCancelsSuccessfully() {
-        cancelable = Network(environment: FakeAPIEnvironment()).requestIgnoringError(fakePostRequest, responseAs: MockObject.self)
+        cancelable = NetworkManager(environment: TestMockAPIEnvironment()).requestIgnoringError(fakePostRequest, responseAs: MockObject.self)
             .handleEvents(receiveCancel: {
                 self.expectation.fulfill()
             })
@@ -134,7 +145,7 @@ class NetworkSpec: XCTestCase {
     
     /// test that it throws an error when no data returns
     func testThatItThrowsAnErrorWhenNoDataReturns() {
-        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
+        cancelable = NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .failure(let error):
@@ -146,13 +157,13 @@ class NetworkSpec: XCTestCase {
                 }
             }) { _ in }
         
-        wait(for: [expectation], timeout: 12.0)
+        wait(for: [expectation], timeout: 5.0)
     }
     
     func testThatItThrowsAValidationFailedWith400Response() {
         MockURLProtocol.responseData = Data()
         MockURLProtocol.statusCode = 400
-        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
+        cancelable = NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .failure(let error):
@@ -163,12 +174,30 @@ class NetworkSpec: XCTestCase {
                 }
             }) { _ in }
         
-        wait(for: [expectation], timeout: 12.0)
+        wait(for: [expectation], timeout: 5.0)
+    }
+    
+    func testThatItThrowsUnsuccessfulRequestWithA500Response() {
+        MockURLProtocol.responseData = Data()
+        MockURLProtocol.statusCode = 500
+        cancelable = NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure(let error):
+                    guard case .serverError(let output) = error else { XCTFail("Expected a validationFailed error"); return }
+                    self.expect(output, equals: "HTTP/1.1 500 internal server error\n\n\n")
+                    self.expectation.fulfill()
+                case .finished:
+                    break
+                }
+            }) { _ in }
+        
+        wait(for: [expectation], timeout: 5.0)
     }
     
     /// test that it return nil when an error is thrown
     func testThatItReturnsNilWithError() {
-        cancelable = Network(environment: FakeAPIEnvironment()).requestIgnoringError(fakeGetRequest, responseAs: MockObject.self)
+        cancelable = NetworkManager(environment: FakeAPIEnvironment()).requestIgnoringError(fakeGetRequest, responseAs: MockObject.self)
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .failure:
@@ -180,13 +209,13 @@ class NetworkSpec: XCTestCase {
                 self.expect(nil: value)
             }
 
-        wait(for: [expectation], timeout: 12.0)
+        wait(for: [expectation], timeout: 5.0)
     }
     
     /// test that it throws an error with invalid data
     func testThatItThrowsAnErrorWithErrorWhenDecodingData() {
         MockURLProtocol.responseData = Data()
-        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
+        cancelable = NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .failure(let error):
@@ -198,14 +227,14 @@ class NetworkSpec: XCTestCase {
                 }
             }) { _ in }
         
-        wait(for: [expectation], timeout: 12.0)
+        wait(for: [expectation], timeout: 5.0)
     }
     
     /// test throws correct error when there is no internet connection
     func testThrowsErrorWhenNoInternet() {
         MockURLProtocol.responseData = Data()
         MockURLProtocol.urlErrorCode = URLError.Code.notConnectedToInternet
-        cancelable = Network(environment: FakeAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self)
+        cancelable = NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
             .sink(receiveCompletion: { completion in
                 switch completion {
                 case .failure(let error):
@@ -216,7 +245,120 @@ class NetworkSpec: XCTestCase {
                 }
             }) { _ in }
         
-        wait(for: [expectation], timeout: 12.0)
+        wait(for: [expectation], timeout: 5.0)
+    }
+    
+    
+    // MARK: - Refresh Tests
+    
+    /// test that the network call is still made succesfully if the refresh succeeds
+    func testThatRefreshHappensWhenNoToken() {
+        let data = try! encoder.encode(mockObject)
+        MockURLProtocol.responseData = data
+
+        let networkManager = NetworkManager(environment: expiredEnvironment)
+        networkManager.defaultSession = session
+        
+        networkManager.request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure:
+                    break
+                case .finished:
+                    break
+                }
+            }) { object in
+                self.expectation.fulfill()
+                self.expect(object, equals: self.mockObject)
+            }
+        .store(in: &subscribers)
+        
+        wait(for: [expectation], timeout: 5.0)
+    }
+    
+    func testThatRefreshHappensOnlyOnceWhenNoToken() {
+        let data = try! encoder.encode(mockObject)
+        MockURLProtocol.responseData = data
+        let environment = expiredEnvironment
+        let networkManager = NetworkManager(environment: environment)
+        networkManager.defaultSession = session
+        
+        networkManager.request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+            .receive(on: RunLoop.main)
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure:
+                    break
+                case .finished:
+                    break
+                }
+            }) { object in
+                self.expectation.fulfill()
+                self.expect(object, equals: self.mockObject)
+            }
+        .store(in: &subscribers)
+        
+        let expectation1 = XCTestExpectation(description: self.debugDescription)
+        networkManager.request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+            .receive(on: RunLoop.main)
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure:
+                    break
+                case .finished:
+                    break
+                }
+            }) { object in
+                expectation1.fulfill()
+                self.expect(object, equals: self.mockObject)
+            }
+        .store(in: &subscribers)
+        
+        let expectation2 = XCTestExpectation(description: self.debugDescription)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            networkManager.request(self.fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+                .receive(on: RunLoop.main)
+                .sink(receiveCompletion: { completion in
+                    switch completion {
+                    case .failure:
+                        break
+                    case .finished:
+                        break
+                    }
+                }) { object in
+                    expectation2.fulfill()
+                    self.expect(object, equals: self.mockObject)
+                }
+                .store(in: &self.subscribers)
+        }
+        
+        
+        wait(for: [expectation, expectation1, expectation2], timeout: 5.0)
+        expect(environment.refreshCount, equals: 1)
+        expect(environment.queueCount, equals: 1)
+        expect(environment.validTokenCount, equals: 1)
+    }
+    
+    /// test that the correct error is thrown when refresh fails
+    func testThatRefreshThrowsErrorWhenRefreshFails() {
+        let environment = expiredEnvironment
+        let networkManager = NetworkManager(environment: environment)
+        networkManager.defaultSession = session
+        environment.refreshSuccess = false
+    
+        cancelable = networkManager.request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+            .receive(on: RunLoop.main)
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure(let error):
+                    guard case .refreshFailed = error else { XCTFail("Expected refresh failed error"); return }
+                    self.expectation.fulfill()
+                case .finished:
+                    break
+                }
+            }) { _ in }
+
+        wait(for: [expectation], timeout: 5.0)
     }
     
     
@@ -227,19 +369,126 @@ class NetworkSpec: XCTestCase {
         let fakeBaseURLString = "www.baseurl.com/"
         let endpointURL = try! Router.MockObject.getObjects.path.asURL()
         let fakeEnvironment = FakeAPIEnvironment(protocolClass: MockURLProtocol.self, bearerToken: nil, refreshToken: nil, baseURL: URL(string: fakeBaseURLString))
-        let network = Network(environment: fakeEnvironment)
+        let network = NetworkManager(environment: fakeEnvironment)
         let adaptedRequest = network.adapt(Router.MockObject.getObjects.urlRequest!)
         expect(adaptedRequest.url!.absoluteString, equals: fakeBaseURLString + endpointURL.absoluteString)
     }
     
     /// Tests that on a post request that the application json header is added to the request
     func testPostRequestAddsApplicationJSONHeader() {
-        let network = Network(environment: FakeAPIEnvironment())
+        let network = NetworkManager(environment: FakeAPIEnvironment())
         expect(fakePostRequest.httpMethod, equals: HTTPMethod.post.rawValue)
         let adaptedRequest = network.adapt(fakePostRequest)
         expect(adaptedRequest.allHTTPHeaderFields![NetworkKeys.contentTypeHeader], equals: NetworkKeys.applicationJSON)
     }
     
+    
+    // MARK: - Network Monitor Tests
+    
+    func testNetworkMonitorPath() {
+        let fakeEnvironment = FakeAPIEnvironment()
+        let network = NetworkManager(environment: fakeEnvironment)
+        sleep(1)
+        expect(notNil: network.networkPathState)
+    }
+    
 }
 
 
+// MARK: - Stress Tests
+
+extension NetworkSpec {
+
+    func testLargeNumberOfRequestsWithRefreshNeeded() {
+        let data = try! encoder.encode(mockObject)
+        MockURLProtocol.responseData = data
+
+        let environment = expiredEnvironment
+        let networkManager = NetworkManager(environment: environment)
+        networkManager.defaultSession = session
+                
+        let requestCount = Int.random(in: 50...1000)
+        let requests = Array(repeating: fakeGetRequest, count: requestCount)
+        requests.publisher
+            .flatMap { request in
+                networkManager.request(request, responseAs: MockObject.self, decoder: JSONDecoder())
+                    .receive(on: RunLoop.main)
+                    
+            }
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure:
+                    break
+                case .finished:
+                    break
+                }
+            }) { object in
+                self.expectation.fulfill()
+                self.expect(object, equals: self.mockObject)
+            }
+            .store(in: &subscribers)
+        
+        
+        wait(for: [expectation], timeout: 5.0)
+        expect(environment.refreshCount, equals: 1)
+        expect(environment.queueCount, equals: requestCount - 1)
+    }
+    
+    func testLargeNumberOfRequestsAfterOtherWithRefreshNeeded() {
+        let data = try! encoder.encode(mockObject)
+        MockURLProtocol.responseData = data
+
+        let environment = expiredEnvironment
+        let networkManager = NetworkManager(environment: environment)
+        networkManager.defaultSession = session
+
+        let requestCount = Int.random(in: 50...100)
+        let requests = Array(repeating: fakeGetRequest, count: requestCount)
+        requests.publisher
+            .flatMap { request in
+                networkManager.request(request, responseAs: MockObject.self, decoder: JSONDecoder())
+                    .receive(on: RunLoop.main)
+                    
+            }
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                case .failure:
+                    break
+                case .finished:
+                    break
+                }
+            }) { object in
+                self.expectation.fulfill()
+                self.expect(object, equals: self.mockObject)
+            }
+            .store(in: &subscribers)
+        
+        let expectation1 = XCTestExpectation(description: self.debugDescription)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            requests.publisher
+                .flatMap { request in
+                    networkManager.request(request, responseAs: MockObject.self, decoder: JSONDecoder())
+                        .receive(on: RunLoop.main)
+                    
+                }
+                .sink(receiveCompletion: { completion in
+                    switch completion {
+                    case .failure:
+                        break
+                    case .finished:
+                        break
+                    }
+                }) { object in
+                    expectation1.fulfill()
+                    self.expect(object, equals: self.mockObject)
+                }
+                .store(in: &self.subscribers)
+        }
+        
+        wait(for: [expectation, expectation1], timeout: 5.0)
+        expect(environment.refreshCount, equals: 1)
+        expect(environment.queueCount, equals: requestCount - 1)
+        expect(environment.validTokenCount, equals: requestCount)
+    }
+    
+}

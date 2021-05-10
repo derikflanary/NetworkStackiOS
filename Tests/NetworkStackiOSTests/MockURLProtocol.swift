@@ -53,8 +53,8 @@ class MockURLProtocol: URLProtocol {
 
 class MockObject: Codable, Equatable {
     
-    let id = 1
-    let name = "name"
+    var id = 1
+    var name = "name"
     
     static func == (lhs: MockObject, rhs: MockObject) -> Bool {
         lhs.id == rhs.id
