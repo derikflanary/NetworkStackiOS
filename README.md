@@ -1,4 +1,4 @@
-# NetworkStackiOS
+# SwiftyNetwork
 
 A simple network stack using Combine or Async/Await to perform network requests and OAuth2Token refreshing.
 
