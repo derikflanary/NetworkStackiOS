@@ -1,6 +1,6 @@
 # NetworkStackiOS
 
-A simple network stack using Combine to perform requests and token refresh
+A simple network stack using Combine or Async/Await to perform network requests and OAuth2Token refreshing.
 
 
 ## Usage
@@ -10,7 +10,7 @@ A simple network stack using Combine to perform requests and token refresh
 * To perform a protected network request (requests that require an auth token of some kind), create an object that conforms to `ProtectedAPIEnvironment` and then initialize a `Network` with that environment. Then call  `request` on the `Network` you created.
 
 * You can use the `HTTPMethod` enum when setting the httpMethod on the `URLRequest`
-* 
+
 
 # Combine
 
@@ -57,4 +57,5 @@ A simple network stack using Combine to perform requests and token refresh
       let object = try await networkManager.request(request, responseAs: CodableObject.self)
     } catch {
       handle(error)
-    }` - await for the decoded object in a do/catch block to handle any possible errors
+    }` 
+    - await for the decoded object in a do/catch block to handle any possible errors
