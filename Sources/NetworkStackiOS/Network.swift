@@ -154,6 +154,31 @@ public class NetworkManager {
         }
     }
     
+    /// Perform a network request that will return `T` or throw an `Error` with the default JsonDecoder
+    ///
+    /// - Parameters:
+    ///   - T: The type of the object the decoder will decode the json into
+    ///   - urlRequest: The url request that contains the endpoint and httpMethod
+    ///   - responseAs: Type of the Decodable object
+    ///
+    /// - Returns: A decoded version of`T`
+    public func request<T: Decodable>(_ urlRequest: URLRequest, responseAs: T.Type) async throws -> T {
+        do {
+            let request = adapt(urlRequest)
+            let (data, response) = try await perform(request)
+            if let error = error(for: response, data: data) {
+                throw error
+            }
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            if let error = error as? URLError {
+                throw convertedError(from: error)
+            } else {
+                throw APIError.decodingError(error)
+            }
+        }
+    }
+    
     /// Performs a request on the a `URLSession`
     /// - Note: - This method checks if the environment is a `ProtectedAPIEnvironment` and will embed the bearer token or start the process to refresh the token if needed
     /// - Parameter urlRequest: `URLRequest`
