@@ -492,3 +492,118 @@ extension NetworkSpec {
     }
     
 }
+
+
+// MARK: - Async/Await tests
+
+extension NetworkSpec {
+    
+    func testRefreshWithAsyncAwait() async throws {
+        do {
+            let environment = expiredEnvironment
+            let token = try await environment.authToken()
+            let token2 = try await environment.authToken()
+            let token3 = try await environment.authToken()
+            expect(token, equals: token2)
+            expect(token, equals: token3)
+        } catch {
+            throw error
+        }
+    }
+    
+    /// test that it returns a decoded object on a successful request
+    func testThatItReturnsASingleObject() async throws {
+        let data = try! encoder.encode(mockObject)
+        MockURLProtocol.responseData = data
+        let network = NetworkManager(environment: TestMockAPIEnvironment())
+        
+        let object = try await network.request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+        expect(object, equals: mockObject)
+    }
+    
+    /// test that it returns an array of decoded objects on a successful request
+    func testThatItReturnsArrayOfObjects() async throws {
+        let data = try! encoder.encode([mockObject])
+        MockURLProtocol.responseData = data
+        MockURLProtocol.responseData = data
+        let network = NetworkManager(environment: TestMockAPIEnvironment())
+        
+        let object = try await network.request(fakeGetRequest, responseAs: [MockObject].self, decoder: JSONDecoder())
+        expect(object, equals: [mockObject])
+    }
+    
+    /// test that it will return a success if a post is called
+    func testThatSuccessfullyPosts() async throws {
+        let data = try! encoder.encode(mockObject)
+        MockURLProtocol.responseData = data
+        let network = NetworkManager(environment: TestMockAPIEnvironment())
+        
+        let object = try await network.request(fakePostRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+        expect(object, equals: mockObject)
+    }
+    
+    
+    // MARK: - Failure Tests
+    
+    /// test that it throws an error when no data returns
+    func testThatItThrowsAnErrorWhenNoDataReturns() async throws {
+        do {
+            _ = try await NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+            XCTFail("Expected a network error")
+        } catch {
+            expect(notNil: error)
+        }
+    }
+    
+    func testThatItThrowsAValidationFailedWith400Response() async throws {
+        MockURLProtocol.responseData = Data()
+        MockURLProtocol.statusCode = 400
+        do {
+            _ = try await NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+            XCTFail("Expected a validationFailed error")
+        } catch {
+            expect(notNil: error)
+        }
+    }
+    
+    func testThatItThrowsUnsuccessfulRequestWithA500Response() async throws {
+        MockURLProtocol.responseData = Data()
+        MockURLProtocol.statusCode = 500
+        do {
+            _ = try await NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+            XCTFail("Expected a validationFailed error")
+        } catch {
+            print(error)
+            guard case .decodingError(let err) = error as? APIError else { XCTFail("Expected a decoding error"); return }
+            guard case .serverError(let output) = err as? APIError else { XCTFail("Expected a validationFailed error"); return }
+            expect(output, equals: "HTTP/1.1 500 internal server error\n\n\n")
+        }
+    }
+    
+    /// test that it throws an error with invalid data
+    func testThatItThrowsAnErrorWithErrorWhenDecodingData() async throws {
+        MockURLProtocol.responseData = Data()
+        do {
+            _ = try await NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+            XCTFail("Expected a decoding error")
+        } catch {
+            print(error)
+            guard case .decodingError(let err) = error as? APIError else { XCTFail("Expected a decoding error"); return }
+            expect(notNil: err)
+        }
+    }
+    
+    /// test throws correct error when there is no internet connection
+    func testThrowsErrorWhenNoInternet() async throws {
+        MockURLProtocol.responseData = Data()
+        MockURLProtocol.urlErrorCode = URLError.Code.notConnectedToInternet
+        do {
+            _ = try await NetworkManager(environment: TestMockAPIEnvironment()).request(fakeGetRequest, responseAs: MockObject.self, decoder: JSONDecoder())
+            XCTFail("Expected a no internet error")
+        } catch {
+            guard case .noInternetConnection = error as? APIError else { XCTFail("Expected a no internet error"); return }
+            expect(notNil: error)
+        }
+    }
+    
+}

@@ -11,11 +11,24 @@ import Combine
 
 @testable import NetworkStackiOS
 
+//
+//  FakeAPIEnvironment.swift
+//  network-combineTests
+//
+//  Created by Derik Flanary on 11/7/19.
+//  Copyright © 2019 Derik Flanary. All rights reserved.
+//
+
+import Foundation
+import Combine
+
+@testable import NetworkStackiOS
+
 class FakeAPIEnvironment: ProtectedAPIEnvironment {
     
     var protocolClass: AnyClass? = MockURLProtocol.self
-    var bearerToken: String? = "fake-token"
-    var refreshToken: String? = nil
+    var bearerToken: String? = nil
+    var refreshToken: String? = "refresh-token"
     var baseURL: URL? = nil
     var refreshSuccess = true
     var refreshCount = 0
@@ -24,6 +37,7 @@ class FakeAPIEnvironment: ProtectedAPIEnvironment {
     private let queue = DispatchQueue(label: "Autenticator.\(UUID().uuidString)")
     private var refreshSubscriber: AnyCancellable?
     private let tokenSubject = PassthroughSubject<Token, Never>()
+    private var refresher: Refresher = Refresher(authToken: nil, refreshToken: "refresh-token")
 
     var isExpired: Bool {
         return bearerToken == nil
@@ -36,6 +50,7 @@ class FakeAPIEnvironment: ProtectedAPIEnvironment {
         self.bearerToken = bearerToken
         self.refreshToken = refreshToken
         self.baseURL = baseURL
+        self.refresher = Refresher(authToken: bearerToken, refreshToken: refreshToken)
     }
     
     var authTokenPublisher: AnyPublisher<Token, URLError> {
@@ -71,6 +86,14 @@ class FakeAPIEnvironment: ProtectedAPIEnvironment {
         }
     }
     
+    func authToken() async throws -> String {
+        if let bearerToken = bearerToken {
+            return bearerToken
+        } else {
+            return try await refresher.refresh()
+        }
+    }
+    
 }
 
 class TestMockAPIEnvironment: MockAPIEnvironment {
@@ -78,5 +101,61 @@ class TestMockAPIEnvironment: MockAPIEnvironment {
     var protocolClass: AnyClass? = MockURLProtocol.self
     
     init() { }
+    
+}
+
+actor Refresher {
+    
+    private enum Status {
+        case inProgress(Task<String, Error>)
+        case ready
+    }
+    
+    private var authToken: String?
+    private var refreshToken: String?
+    private var status: Status = .ready
+    private var isExpired: Bool {
+        authToken == nil
+
+    }
+    init(authToken: String?, refreshToken: String? = "refreshToken") {
+        self.authToken = authToken
+        self.refreshToken = refreshToken
+    }
+
+    func refresh() async throws -> String {
+        guard let refreshToken = refreshToken else { throw APIError.unauthorized }
+            
+        switch status {
+        case .inProgress(let handle):
+            return try await handle.value
+        case .ready:
+            if let authToken = authToken, !isExpired {
+                return authToken
+            }
+            let handle = Task {
+                try await newAuthToken(with: refreshToken)
+            }
+            status = .inProgress(handle)
+
+            do {
+                let newToken = try await handle.value
+                authToken = newToken
+                status = .ready
+                return newToken
+            } catch {
+                throw error
+            }
+        }
+    }
+    
+    private func newAuthToken(with refreshToken: String) async throws -> String {
+        try await Task.sleep(nanoseconds: 1_000_000)
+        let token = "\(Int.random(in: 1..<100))"
+        authToken = token
+        print(token)
+        print("🔄 is refreshing")
+        return token
+    }
     
 }

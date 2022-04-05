@@ -46,7 +46,7 @@ public class NetworkManager {
     }
     
     
-    // MARK: - Performing network requests
+    // MARK: - Performing network requests (Combine)
     
     /// Perform a network request that will return a publisher that ignores the error and instead returns an optional value
     ///
@@ -123,6 +123,53 @@ public class NetworkManager {
                     return self.defaultSession.dataTaskPublisher(for: request).eraseToAnyPublisher()
                 }
                 .eraseToAnyPublisher()
+    }
+    
+    
+    // MARK: - Async/Await
+    
+    /// Perform a network request that will return `T` or throw an `Error` Asynchronously
+    ///
+    /// - Parameters:
+    ///   - T: The type of the object the decoder will decode the json into
+    ///   - urlRequest: The url request that contains the endpoint and httpMethod
+    ///   - responseAs: Type of the Decodable object
+    ///   - jsonDecoder: JSONDecoder to be used for decoding the json into the Decodable Type
+    ///
+    /// - Returns: A decoded version of`T`
+    public func request<T: Decodable, S: TopLevelDecoder>(_ urlRequest: URLRequest, responseAs: T.Type, decoder: S) async throws -> T where S.Input == Data {
+        do {
+            let request = adapt(urlRequest)
+            let (data, response) = try await perform(request)
+            if let error = error(for: response, data: data) {
+                throw error
+            }
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            if let error = error as? URLError {
+                throw convertedError(from: error)
+            } else {
+                throw APIError.decodingError(error)
+            }
+        }
+    }
+    
+    /// Performs a request on the a `URLSession`
+    /// - Note: - This method checks if the environment is a `ProtectedAPIEnvironment` and will embed the bearer token or start the process to refresh the token if needed
+    /// - Parameter urlRequest: `URLRequest`
+    /// - Returns: A tuple with the `Data` and the `URLResponse` from the server
+    public func perform(_ urlRequest: URLRequest) async throws -> (Data, URLResponse) {
+        if let mockEnvironment = self.environment as? MockAPIEnvironment, mockEnvironment.protocolClass != nil {
+            return try await defaultSession.data(for: urlRequest)
+        }
+
+        guard let environment = self.environment as? ProtectedAPIEnvironment else { return try await defaultSession.data(for: urlRequest) }
+        
+        let authToken = try await environment.authToken()
+        var authorizedRequest = urlRequest
+        authorizedRequest.setValue("\(NetworkKeys.bearer) \(authToken)", forHTTPHeaderField: NetworkKeys.authorization)
+
+        return try await defaultSession.data(for: authorizedRequest)
     }
 
     

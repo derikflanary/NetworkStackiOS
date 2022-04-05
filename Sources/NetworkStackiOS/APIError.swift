@@ -19,4 +19,5 @@ public enum APIError: Error {
     case serverError(String?) // A 500~ error
     case unsuccessfulRequest(String?) // An error response with a status other than a 500 or 400 or 200
     case validationFailed(String?) // A 400~ error
+    case unauthorized
 }

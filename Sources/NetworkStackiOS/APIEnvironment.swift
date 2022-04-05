@@ -22,6 +22,7 @@ public protocol APIEnvironment {
 public protocol ProtectedAPIEnvironment: APIEnvironment {
     var isExpired: Bool { get }
     var authTokenPublisher: AnyPublisher<Token, URLError> { get }
+    func authToken() async throws -> String
 }
 
 /// This will allow you to control the responses returned to the `NetworkManager` when in a testing environment
