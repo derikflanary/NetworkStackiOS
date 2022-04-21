@@ -9,12 +9,12 @@
 import Foundation
 
 public struct NetworkKeys {
-    static let acceptHeader = "Accept"
-    static let applicationJSON = "application/json"
-    static let authorization = "Authorization"
-    static let bearer = "Bearer"
-    static let contentTypeHeader = "Content-Type"
-    static let contentLength = "Content-Length"
-    static let networkMonitorQueue = "NetworkMonitorQueue"
-    static let requestIdHeader = "X-Request-Id"
+    public static let acceptHeader = "Accept"
+    public static let applicationJSON = "application/json"
+    public static let authorization = "Authorization"
+    public static let bearer = "Bearer"
+    public static let contentTypeHeader = "Content-Type"
+    public static let contentLength = "Content-Length"
+    public static let networkMonitorQueue = "NetworkMonitorQueue"
+    public static let requestIdHeader = "X-Request-Id"
 }
