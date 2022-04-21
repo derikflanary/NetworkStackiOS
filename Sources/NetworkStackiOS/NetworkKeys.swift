@@ -8,7 +8,7 @@
 
 import Foundation
 
-struct NetworkKeys {
+public struct NetworkKeys {
     static let acceptHeader = "Accept"
     static let applicationJSON = "application/json"
     static let authorization = "Authorization"
