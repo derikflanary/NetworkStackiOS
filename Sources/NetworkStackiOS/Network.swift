@@ -110,7 +110,7 @@ public class NetworkManager {
     public func perform(_ urlRequest: URLRequest) -> AnyPublisher<URLSession.DataTaskPublisher.Output, URLError> {
         let request = adapt(urlRequest)
         if let mockEnvironment = self.environment as? MockAPIEnvironment, mockEnvironment.protocolClass != nil {
-            return defaultSession.dataTaskPublisher(for: urlRequest).eraseToAnyPublisher()
+            return defaultSession.dataTaskPublisher(for: request).eraseToAnyPublisher()
         }
         
         guard let environment = self.environment as? ProtectedAPIEnvironment else { return defaultSession.dataTaskPublisher(for: request).eraseToAnyPublisher() }
@@ -185,7 +185,7 @@ public class NetworkManager {
             return try await defaultSession.data(for: request)
         }
 
-        guard let environment = self.environment as? ProtectedAPIEnvironment else { return try await defaultSession.data(for: urlRequest) }
+        guard let environment = self.environment as? ProtectedAPIEnvironment else { return try await defaultSession.data(for: request) }
         
         let authToken = try await environment.authToken()
         var authorizedRequest = request
