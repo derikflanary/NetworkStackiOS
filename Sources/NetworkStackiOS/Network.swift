@@ -59,9 +59,7 @@ public class NetworkManager {
     ///
     /// - Returns: A generic publisher with `Output` of T? and Never for the `Error`
     public func requestIgnoringError<T: Decodable>(_ urlRequest: URLRequest, responseAs: T.Type) -> AnyPublisher<T?, Never> {
-        let request = adapt(urlRequest)
-        
-        return perform(request)
+        perform(urlRequest)
             .map { $0.data }
             .decode(type: T?.self, decoder: JSONDecoder())
             .replaceError(with: nil)
@@ -81,9 +79,8 @@ public class NetworkManager {
     ///
     /// - Returns: A generic publisher with `Output` of T and `APIError` of Error
     public func request<T: Decodable, S: TopLevelDecoder>(_ urlRequest: URLRequest, responseAs: T.Type, retryCount: Int = 3, decoder: S) -> AnyPublisher<T, APIError> where S.Input == Data {
-        let request = adapt(urlRequest)
                 
-        return perform(request)
+        perform(urlRequest)
             .retry(retryCount)
             .mapError{ error -> APIError in
                 self.convertedError(from: error)
@@ -111,14 +108,15 @@ public class NetworkManager {
     ///
     /// - Returns: `URLSession.DataTaskPublisher.eraseToAnyPublisher()`
     public func perform(_ urlRequest: URLRequest) -> AnyPublisher<URLSession.DataTaskPublisher.Output, URLError> {
+        let request = adapt(urlRequest)
         if let mockEnvironment = self.environment as? MockAPIEnvironment, mockEnvironment.protocolClass != nil {
             return defaultSession.dataTaskPublisher(for: urlRequest).eraseToAnyPublisher()
         }
         
-        guard let environment = self.environment as? ProtectedAPIEnvironment else { return defaultSession.dataTaskPublisher(for: urlRequest).eraseToAnyPublisher() }
+        guard let environment = self.environment as? ProtectedAPIEnvironment else { return defaultSession.dataTaskPublisher(for: request).eraseToAnyPublisher() }
             return environment.authTokenPublisher
                 .flatMap { token -> AnyPublisher<URLSession.DataTaskPublisher.Output, URLError> in
-                    var request = urlRequest
+                    var request = request
                     request.setValue("\(NetworkKeys.bearer) \(token)", forHTTPHeaderField: NetworkKeys.authorization)
                     return self.defaultSession.dataTaskPublisher(for: request).eraseToAnyPublisher()
                 }
@@ -139,8 +137,7 @@ public class NetworkManager {
     /// - Returns: A decoded version of`T`
     public func request<T: Decodable, S: TopLevelDecoder>(_ urlRequest: URLRequest, responseAs: T.Type, decoder: S) async throws -> T where S.Input == Data {
         do {
-            let request = adapt(urlRequest)
-            let (data, response) = try await perform(request)
+            let (data, response) = try await perform(urlRequest)
             if let error = error(for: response, data: data) {
                 throw error
             }
@@ -164,8 +161,7 @@ public class NetworkManager {
     /// - Returns: A decoded version of`T`
     public func request<T: Decodable>(_ urlRequest: URLRequest, responseAs: T.Type) async throws -> T {
         do {
-            let request = adapt(urlRequest)
-            let (data, response) = try await perform(request)
+            let (data, response) = try await perform(urlRequest)
             if let error = error(for: response, data: data) {
                 throw error
             }
@@ -184,14 +180,15 @@ public class NetworkManager {
     /// - Parameter urlRequest: `URLRequest`
     /// - Returns: A tuple with the `Data` and the `URLResponse` from the server
     public func perform(_ urlRequest: URLRequest) async throws -> (Data, URLResponse) {
+        let request = adapt(urlRequest)
         if let mockEnvironment = self.environment as? MockAPIEnvironment, mockEnvironment.protocolClass != nil {
-            return try await defaultSession.data(for: urlRequest)
+            return try await defaultSession.data(for: request)
         }
 
         guard let environment = self.environment as? ProtectedAPIEnvironment else { return try await defaultSession.data(for: urlRequest) }
         
         let authToken = try await environment.authToken()
-        var authorizedRequest = urlRequest
+        var authorizedRequest = request
         authorizedRequest.setValue("\(NetworkKeys.bearer) \(authToken)", forHTTPHeaderField: NetworkKeys.authorization)
 
         return try await defaultSession.data(for: authorizedRequest)
